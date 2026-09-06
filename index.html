@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gua — Find it in the market</title>
+<meta name="description" content="Gua is an interactive prototype of a GPS-pinned, voice-first market navigation app for Accra's open-air markets, built for low-literacy vendors. Tap around to explore the concept.">
+<meta property="og:title" content="Gua — Find it in the market">
+<meta property="og:description" content="An interactive prototype: GPS-pinned, voice-first market navigation for Accra's open-air markets.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B19;
+    --ink-soft:#26241f;
+    --paper:#F6EFE3;
+    --paper-dim:#e9e0cf;
+    --tomato:#D64545;
+    --tomato-dark:#b83636;
+    --indigo:#2B4570;
+    --indigo-light:#3d5c8f;
+    --plantain:#6B8E4E;
+    --ochre:#E3A857;
+    --line: rgba(246,239,227,0.12);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: #0e0d0c;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Inter',sans-serif;
+    padding:32px 16px;
+  }
+  .rig{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  .rig-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:#7a756a;
+  }
+  .phone{
+    width:390px; height:844px;
+    background: var(--ink);
+    border-radius:46px;
+    border:10px solid #050505;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.03);
+    overflow:hidden;
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .statusbar{
+    height:46px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--paper);
+  }
+  .statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--tomato); display:inline-block; margin-right:6px;}
+  .app{ flex:1; position:relative; overflow:hidden; }
+  .screen{
+    position:absolute; inset:0;
+    display:none;
+    flex-direction:column;
+    overflow-y:auto;
+    -ms-overflow-style:none; scrollbar-width:none;
+  }
+  .screen::-webkit-scrollbar{display:none;}
+  .screen.active{display:flex;}
+
+  /* ---------- shared bits ---------- */
+  .wordmark{
+    font-family:'Bricolage Grotesque',sans-serif;
+    font-weight:800; font-size:26px; color:var(--tomato); letter-spacing:-0.02em;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.14em;
+    text-transform:uppercase; color:#9b9585;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(246,239,227,0.08); border:1px solid var(--line);
+    color:var(--paper); border-radius:999px; padding:6px 12px; font-size:12.5px;
+  }
+  .btn{
+    border:none; border-radius:14px; font-family:'Inter'; font-weight:700;
+    cursor:pointer; transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:var(--tomato); color:var(--paper); }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-outline{ background:transparent; border:1.5px solid var(--indigo-light); color:var(--paper); }
+  .tag-pin{
+    width:34px; height:40px;
+    background: var(--tomato);
+    clip-path: path('M17 0 C26.4 0 34 7.6 34 17 C34 27.5 17 40 17 40 C17 40 0 27.5 0 17 C0 7.6 7.6 0 17 0 Z');
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    box-shadow:0 6px 14px rgba(0,0,0,.4);
+    cursor:pointer;
+  }
+  .verified-badge{
+    width:20px;height:20px;border-radius:50%;
+    background:var(--plantain); color:var(--ink); font-size:11px; font-weight:800;
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px rgba(107,142,78,.25), 0 0 0 4px transparent;
+    border: 1.5px dashed rgba(28,27,25,.35);
+  }
+
+  /* ---------- MAP SCREEN ---------- */
+  #screen-map .top{
+    padding:14px 20px 12px; flex:0 0 auto;
+    display:flex; flex-direction:column; gap:12px;
+    background: linear-gradient(180deg, var(--ink) 70%, transparent);
+    z-index:5;
+  }
+  #screen-map .top-row{ display:flex; align-items:center; justify-content:space-between; }
+  .search-wrap{
+    display:flex; align-items:center; gap:10px;
+    background:var(--paper); border-radius:16px; padding:12px 14px;
+  }
+  .search-wrap input{
+    border:none; outline:none; background:transparent; flex:1;
+    font-family:'Inter'; font-size:14.5px; color:var(--ink);
+  }
+  .search-wrap input::placeholder{ color:#8a8375; }
+  .mic-btn{
+    width:32px;height:32px;border-radius:50%;background:var(--indigo);
+    display:flex;align-items:center;justify-content:center;color:var(--paper); flex:0 0 auto;
+    cursor:pointer; font-size:14px;
+  }
+  .chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+  .chip{
+    flex:0 0 auto; display:flex; align-items:center; gap:6px;
+    background:var(--ink-soft); border:1px solid var(--line); color:var(--paper);
+    border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:all .15s ease;
+  }
+  .chip.active{ background:var(--ochre); border-color:var(--ochre); color:var(--ink); }
+
+  .map-area{
+    position:relative; height:260px; flex:0 0 auto; margin:0 16px; border-radius:20px; overflow:hidden;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, rgba(246,239,227,0.05) 30px 32px),
+      repeating-linear-gradient(90deg, transparent 0 30px, rgba(246,239,227,0.05) 30px 32px),
+      radial-gradient(120% 100% at 20% 0%, #33301f 0%, #1f1e19 55%, #16150f 100%);
+    border:1px solid var(--line);
+  }
+  .you-dot{
+    position:absolute; width:14px;height:14px;border-radius:50%;
+    background:var(--indigo-light); box-shadow:0 0 0 5px rgba(61,92,143,.28);
+    top:78%; left:14%;
+  }
+  .pin{ position:absolute; }
+  .pin span.emoji{ transform:translateY(-2px); }
+  .map-fade{ position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(28,27,25,.9) 100%); pointer-events:none;}
+
+  .sheet{
+    flex:1; background:var(--paper); border-radius:24px 24px 0 0;
+    margin-top:-16px; position:relative; z-index:4;
+    padding:14px 18px 90px; overflow-y:auto;
+  }
+  .sheet-handle{ width:38px;height:4px;border-radius:99px;background:#d8cdb4; margin:0 auto 12px; }
+  .sheet-title{ font-family:'Bricolage Grotesque'; font-weight:700; font-size:16px; color:var(--ink); }
+  .sheet-sub{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#8a8062; margin-top:2px; letter-spacing:.04em;}
+
+  .stall-card{
+    display:flex; gap:12px; padding:12px; margin-top:12px;
+    background:#fff; border-radius:16px; border:1px solid #e7dcc4;
+    cursor:pointer; position:relative;
+  }
+  .stall-card::after{
+    content:''; position:absolute; right:10px; top:10px; bottom:10px; width:0;
+    border-left:2px dashed #e0d4b8;
+  }
+  .swatch{
+    width:58px;height:58px;border-radius:12px; flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center; font-size:26px;
+  }
+  .stall-info{ flex:1; min-width:0; }
+  .stall-info .name{ font-weight:700; font-size:13.5px; color:var(--ink); }
+  .stall-info .seller{ font-size:12px; color:#7a715c; margin-top:1px; display:flex; align-items:center; gap:5px;}
+  .stall-meta{ display:flex; align-items:center; gap:10px; margin-top:7px; }
+  .price-tag{
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12.5px;
+    background:var(--ink); color:var(--ochre); padding:3px 8px; border-radius:8px;
+  }
+  .dist{ font-size:11.5px; color:#8a8062; font-family:'IBM Plex Mono',monospace; }
+
+  /* ---------- DETAIL SHEET (overlay) ---------- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(14,13,12,.55);
+    display:none; align-items:flex-end; z-index:20;
+  }
+  .overlay.open{ display:flex; }
+  .detail{
+    width:100%; background:var(--paper); border-radius:24px 24px 0 0;
+    padding:16px 20px 26px; max-height:82%; overflow-y:auto;
+  }
+  .detail-photo{
+    height:150px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    font-size:56px; margin-bottom:14px;
+  }
+  .detail-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .detail h2{ font-family:'Bricolage Grotesque'; font-size:20px; color:var(--ink); }
+  .detail .price-big{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:18px; color:var(--tomato-dark); white-space:nowrap;}
+  .seller-row{ display:flex; align-items:center; gap:8px; margin-top:8px; color:#5f5744; font-size:13px;}
+  .fresh-row{ margin-top:10px; font-size:12px; color:#8a8062; font-family:'IBM Plex Mono',monospace;}
+  .desc{ margin-top:12px; font-size:13.5px; line-height:1.5; color:#4a4436; }
+  .detail-actions{ display:flex; gap:10px; margin-top:18px; }
+  .detail-actions .btn{ flex:1; padding:14px; font-size:14px; }
+  .close-x{
+    position:absolute; top:14px; right:16px; width:30px;height:30px;border-radius:50%;
+    background:rgba(28,27,25,.08); display:flex;align-items:center;justify-content:center;
+    color:var(--ink); font-size:16px; cursor:pointer;
+  }
+
+  /* ---------- SCOUT SCREEN ---------- */
+  #screen-scout .inner{ padding:22px 20px 100px; flex:1; }
+  #screen-scout h1{ font-family:'Bricolage Grotesque'; font-size:23px; color:var(--paper); font-weight:800; margin-top:6px;}
+  #screen-scout .lede{ color:#a8a293; font-size:13.5px; margin-top:6px; line-height:1.5; }
+
+  .capture-box{
+    margin-top:20px; height:150px; border-radius:18px;
+    border:2px dashed rgba(246,239,227,.28);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    color:var(--paper); cursor:pointer; background:rgba(246,239,227,.03);
+  }
+  .capture-box .cam-ic{ font-size:30px; }
+  .capture-box span{ font-size:12.5px; color:#b8b2a2; }
+
+  .gps-chip{
+    margin-top:14px; display:flex; align-items:center; gap:8px;
+    background:rgba(107,142,78,.14); border:1px solid rgba(107,142,78,.4);
+    color:#c8dab2; border-radius:12px; padding:10px 14px; font-size:12.5px;
+  }
+
+  .field-label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:#9b9585; margin-top:22px; display:block;}
+
+  .cat-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .cat-pick{
+    display:flex; align-items:center; gap:6px; padding:9px 13px; border-radius:12px;
+    background:var(--ink-soft); border:1.5px solid var(--line); color:var(--paper); font-size:13px; font-weight:600;
+    cursor:pointer;
+  }
+  .cat-pick.active{ background:var(--tomato); border-color:var(--tomato); }
+
+  .voice-row{
+    margin-top:12px; display:flex; align-items:center; gap:14px;
+    background:var(--ink-soft); border:1px solid var(--line); border-radius:16px; padding:14px;
+  }
+  .mic-big{
+    width:52px;height:52px;border-radius:50%; background:var(--indigo); flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center; font-size:20px; color:var(--paper); cursor:pointer;
+    transition:box-shadow .2s ease;
+  }
+  .mic-big.rec{ background:var(--tomato); box-shadow:0 0 0 8px rgba(214,69,69,.22); }
+  .wave{ flex:1; height:26px; display:flex; align-items:center; gap:3px; }
+  .wave i{ width:3px; background:#5b5646; border-radius:2px; height:8px; display:block; }
+  .wave.rec i{ background:var(--ochre); animation: bar 1s ease-in-out infinite; }
+  .wave i:nth-child(1){height:14px;} .wave i:nth-child(2){height:22px;animation-delay:.1s;}
+  .wave i:nth-child(3){height:10px;animation-delay:.2s;} .wave i:nth-child(4){height:18px;animation-delay:.3s;}
+  .wave i:nth-child(5){height:24px;animation-delay:.15s;} .wave i:nth-child(6){height:12px;animation-delay:.25s;}
+  .wave i:nth-child(7){height:20px;animation-delay:.05s;} .wave i:nth-child(8){height:9px;animation-delay:.35s;}
+  @keyframes bar{ 0%,100%{transform:scaleY(.5);} 50%{transform:scaleY(1);} }
+  .voice-label{ font-size:12px; color:#a8a293; }
+
+  .stepper{
+    margin-top:10px; display:flex; align-items:center; justify-content:space-between;
+    background:var(--ink-soft); border:1px solid var(--line); border-radius:16px; padding:10px 14px;
+  }
+  .stepper button{
+    width:38px;height:38px;border-radius:10px; background:rgba(246,239,227,.08); border:none;
+    color:var(--paper); font-size:18px; cursor:pointer; font-weight:700;
+  }
+  .stepper .amt{ font-family:'IBM Plex Mono',monospace; color:var(--ochre); font-size:20px; font-weight:600; }
+
+  .post-btn{ margin-top:26px; width:100%; padding:16px; font-size:15px; }
+
+  .toast{
+    position:absolute; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--plantain); color:var(--ink); padding:10px 18px; border-radius:999px;
+    font-weight:700; font-size:13px; opacity:0; pointer-events:none; transition:all .3s ease; z-index:30;
+    white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---------- STUB SCREENS ---------- */
+  .stub{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--paper); padding:40px; text-align:center;}
+  .stub .ic{ font-size:34px; }
+  .stub h3{ font-family:'Bricolage Grotesque'; font-size:18px; }
+  .stub p{ font-size:13px; color:#a8a293; line-height:1.5; }
+
+  /* ---------- BOTTOM NAV ---------- */
+  .navbar{
+    position:absolute; left:0; right:0; bottom:0; height:82px;
+    background:rgba(28,27,25,.92); backdrop-filter:blur(6px);
+    border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-around;
+    padding-bottom:14px; z-index:15;
+  }
+  .nav-item{ display:flex; flex-direction:column; align-items:center; gap:3px; color:#7a7568; cursor:pointer; font-size:9.5px; font-family:'IBM Plex Mono',monospace;}
+  .nav-item .ic{ font-size:19px; }
+  .nav-item.active{ color:var(--tomato); }
+  .nav-scout{
+    width:52px;height:52px; border-radius:16px; background:var(--tomato); color:var(--paper);
+    display:flex; align-items:center; justify-content:center; font-size:24px; margin-top:-26px;
+    box-shadow:0 8px 20px rgba(214,69,69,.4); cursor:pointer;
+  }
+  .nav-scout.active{ background:var(--tomato-dark); }
+</style>
+</head>
+<body>
+
+<div class="rig">
+  <div class="rig-label">Gua — MVP prototype · tap around</div>
+  <div class="phone">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span><span class="dot"></span>Kaneshie Market</span>
+      <span>••••</span>
+    </div>
+
+    <div class="app">
+
+      <!-- ============ MAP SCREEN ============ -->
+      <div class="screen active" id="screen-map">
+        <div class="top">
+          <div class="top-row">
+            <span class="wordmark">Gua</span>
+            <span class="pill">📍 Kaneshie ▾</span>
+          </div>
+          <div class="search-wrap">
+            <span>🔍</span>
+            <input type="text" placeholder="Search tomatoes, salmon, okra…" />
+            <div class="mic-btn">🎙️</div>
+          </div>
+          <div class="chips">
+            <div class="chip active" data-chip="all">All</div>
+            <div class="chip" data-chip="veg">🍅 Vegetables</div>
+            <div class="chip" data-chip="fish">🐟 Fish &amp; Meat</div>
+            <div class="chip" data-chip="fruit">🍌 Fruits</div>
+            <div class="chip" data-chip="spice">🌶️ Spices</div>
+            <div class="chip" data-chip="dry">🧺 Provisions</div>
+          </div>
+        </div>
+
+        <div class="map-area">
+          <div class="you-dot"></div>
+          <div class="pin" data-cat="veg" style="top:22%; left:30%;" onclick="openDetail('tomato')"><div class="tag-pin"><span class="emoji">🍅</span></div></div>
+          <div class="pin" data-cat="fish" style="top:40%; left:62%;" onclick="openDetail('salmon')"><div class="tag-pin" style="background:var(--indigo);"><span class="emoji">🐟</span></div></div>
+          <div class="pin" data-cat="veg" style="top:58%; left:20%;" onclick="openDetail('okra')"><div class="tag-pin"><span class="emoji">🫛</span></div></div>
+          <div class="pin" data-cat="fruit" style="top:15%; left:70%;" onclick="openDetail('plantain')"><div class="tag-pin" style="background:var(--ochre); color:var(--ink);"><span class="emoji">🍌</span></div></div>
+          <div class="pin" data-cat="spice" style="top:68%; left:55%;" onclick="openDetail('pepper')"><div class="tag-pin" style="background:var(--plantain);"><span class="emoji">🌶️</span></div></div>
+          <div class="map-fade"></div>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-title">14 sellers found nearby</div>
+          <div class="sheet-sub">SORTED BY DISTANCE · UPDATED LIVE</div>
+
+          <div class="stall-card" onclick="openDetail('tomato')">
+            <div class="swatch" style="background:#f7ded1;">🍅</div>
+            <div class="stall-info">
+              <div class="name">Fresh tomatoes, sold by basket</div>
+              <div class="seller">Auntie Efua <span class="verified-badge">✓</span></div>
+              <div class="stall-meta">
+                <span class="price-tag">GH₵ 45</span>
+                <span class="dist">● 80m · 2 min walk</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stall-card" onclick="openDetail('salmon')">
+            <div class="swatch" style="background:#dbe4f2;">🐟</div>
+            <div class="stall-info">
+              <div class="name">Fresh salmon, cleaned on request</div>
+              <div class="seller">Mama Adjoa <span class="verified-badge">✓</span></div>
+              <div class="stall-meta">
+                <span class="price-tag">GH₵ 90/kg</span>
+                <span class="dist">● 140m · 3 min walk</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stall-card" onclick="openDetail('okra')">
+            <div class="swatch" style="background:#e3ecd6;">🫛</div>
+            <div class="stall-info">
+              <div class="name">Okra, freshly cut this morning</div>
+              <div class="seller">Auntie Akosua</div>
+              <div class="stall-meta">
+                <span class="price-tag">GH₵ 15</span>
+                <span class="dist">● 210m · 4 min walk</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- detail overlay lives inside map screen -->
+        <div class="overlay" id="detail-overlay" onclick="closeDetailBg(event)">
+          <div class="detail" onclick="event.stopPropagation()">
+            <div class="close-x" onclick="closeDetail()">✕</div>
+            <div class="detail-photo" id="detail-photo" style="background:#f7ded1;">🍅</div>
+            <div class="detail-head">
+              <div>
+                <h2 id="detail-name">Fresh tomatoes</h2>
+                <div class="seller-row"><span id="detail-seller">Auntie Efua</span> <span class="verified-badge">✓</span></div>
+              </div>
+              <div class="price-big" id="detail-price">GH₵ 45</div>
+            </div>
+            <div class="fresh-row" id="detail-fresh">📍 90m away · updated 1 hour ago</div>
+            <p class="desc" id="detail-desc">Sold by the basket, straight from Techiman farms this morning. Ask for wholesale price if buying more than 3 baskets.</p>
+            <div class="detail-actions">
+              <button class="btn btn-outline" onclick="showToast('Opening directions…')">🧭 Directions</button>
+              <button class="btn btn-primary" onclick="showToast('Message sent to seller')">💬 Message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCOUT SCREEN ============ -->
+      <div class="screen" id="screen-scout">
+        <div class="inner">
+          <span class="eyebrow">Scout mode</span>
+          <h1>Add this stall<br/>to the map</h1>
+          <p class="lede">No typing needed. Snap a photo, record a quick voice note, and buyers nearby will find you.</p>
+
+          <div class="capture-box" onclick="showToast('Photo captured')">
+            <div class="cam-ic">📷</div>
+            <span>Tap to take a photo</span>
+          </div>
+
+          <div class="gps-chip">📍 Location captured — Kaneshie Market, Row 3 ✓</div>
+
+          <span class="field-label">What are you selling?</span>
+          <div class="cat-grid">
+            <div class="cat-pick active">🍅 Vegetables</div>
+            <div class="cat-pick">🐟 Fish &amp; Meat</div>
+            <div class="cat-pick">🍌 Fruits</div>
+            <div class="cat-pick">🌶️ Spices</div>
+            <div class="cat-pick">🧺 Provisions</div>
+          </div>
+
+          <span class="field-label">Describe it (voice note)</span>
+          <div class="voice-row">
+            <div class="mic-big" id="mic-big" onclick="toggleRec()">🎙️</div>
+            <div style="flex:1;">
+              <div class="wave" id="wave">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+              <div class="voice-label" id="rec-label">Hold to record — "Fresh tomatoes, GH₵45 a basket"</div>
+            </div>
+          </div>
+
+          <span class="field-label">Price</span>
+          <div class="stepper">
+            <button onclick="changePrice(-5)">–</button>
+            <span class="amt">GH₵ <span id="price-amt">45</span></span>
+            <button onclick="changePrice(5)">+</button>
+          </div>
+
+          <button class="btn btn-primary post-btn" onclick="showToast('Added to the map ✓')">Post to Map</button>
+        </div>
+      </div>
+
+      <!-- ============ MESSAGES STUB ============ -->
+      <div class="screen" id="screen-messages">
+        <div class="stub">
+          <div class="ic">💬</div>
+          <h3>Messages</h3>
+          <p>Chat with sellers about availability, price, and pickup — coming in the next build.</p>
+        </div>
+      </div>
+
+      <!-- ============ PROFILE STUB ============ -->
+      <div class="screen" id="screen-profile">
+        <div class="stub">
+          <div class="ic">🧺</div>
+          <h3>Your Profile</h3>
+          <p>Saved sellers, order history, and scout stats will live here.</p>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+
+      <!-- ============ NAV ============ -->
+      <div class="navbar">
+        <div class="nav-item active" data-screen="screen-map" onclick="showScreen('screen-map', this)">
+          <span class="ic">🗺️</span>Map
+        </div>
+        <div class="nav-item" data-screen="screen-map" onclick="showScreen('screen-map', this)">
+          <span class="ic">🏷️</span>Categories
+        </div>
+        <div class="nav-scout" data-screen="screen-scout" onclick="showScreen('screen-scout', this, true)">✚</div>
+        <div class="nav-item" data-screen="screen-messages" onclick="showScreen('screen-messages', this)">
+          <span class="ic">💬</span>Messages
+        </div>
+        <div class="nav-item" data-screen="screen-profile" onclick="showScreen('screen-profile', this)">
+          <span class="ic">🧺</span>Profile
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p style="max-width:390px; margin:22px auto 0; text-align:center; font-family:'Inter',sans-serif; font-size:12.5px; line-height:1.6; color:#847f72; padding:0 16px;">
+  Gua is an early-stage concept prototype for a market-navigation app for Accra's open-air markets, designed for low-literacy, voice-first use.
+  The listings above are sample data for demonstration — there's no live backend yet.
+  Built by Jeffery Osei Amoafo, part of <a href="https://mnjinitiative.org" style="color:#a8a293;">The MNJ Initiative</a>.
+</p>
+
+<script>
+  const stalls = {
+    tomato:  { name:"Fresh tomatoes", seller:"Auntie Efua", price:"GH₵ 45", fresh:"📍 80m away · updated 1 hour ago", bg:"#f7ded1", emoji:"🍅",
+      desc:"Sold by the basket, straight from Techiman farms this morning. Ask for wholesale price if buying more than 3 baskets." },
+    salmon:  { name:"Fresh salmon", seller:"Mama Adjoa", price:"GH₵ 90/kg", fresh:"📍 140m away · updated 40 min ago", bg:"#dbe4f2", emoji:"🐟",
+      desc:"Cleaned and scaled on request, no extra charge. Comes in on ice every morning around 7am." },
+    okra:    { name:"Fresh okra", seller:"Auntie Akosua", price:"GH₵ 15", fresh:"📍 210m away · updated 3 hours ago", bg:"#e3ecd6", emoji:"🫛",
+      desc:"Cut this morning, still firm. Good for soup — she'll bag it up for you while you wait." },
+    plantain:{ name:"Ripe plantain", seller:"Uncle Kwesi", price:"GH₵ 8", fresh:"📍 95m away · updated 2 hours ago", bg:"#fbe8c6", emoji:"🍌",
+      desc:"A mix of ripe and semi-ripe available — tell him what you're cooking and he'll pick the right ones." },
+    pepper:  { name:"Scotch bonnet pepper", seller:"Sister Abena", price:"GH₵ 20", fresh:"📍 180m away · updated 1 hour ago", bg:"#e6f2d9", emoji:"🌶️",
+      desc:"Sold fresh or sun-dried. Fresh batch just came in from Ashanti region this morning." }
+  };
+
+  function openDetail(key){
+    const s = stalls[key];
+    document.getElementById('detail-name').textContent = s.name;
+    document.getElementById('detail-seller').textContent = s.seller;
+    document.getElementById('detail-price').textContent = s.price;
+    document.getElementById('detail-fresh').textContent = s.fresh;
+    document.getElementById('detail-desc').textContent = s.desc;
+    const photo = document.getElementById('detail-photo');
+    photo.style.background = s.bg;
+    photo.textContent = s.emoji;
+    document.getElementById('detail-overlay').classList.add('open');
+  }
+  function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); }
+  function closeDetailBg(e){ if(e.target.id === 'detail-overlay') closeDetail(); }
+
+  function showScreen(id, el, isScout){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-scout').forEach(n => n.classList.remove('active'));
+    if(isScout){ el.classList.add('active'); }
+    else if(el.classList.contains('nav-item')) { el.classList.add('active'); }
+  }
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const cat = chip.dataset.chip;
+      document.querySelectorAll('.pin').forEach(p => {
+        p.style.opacity = (cat === 'all' || p.dataset.cat === cat) ? '1' : '0.15';
+      });
+    });
+  });
+
+  document.querySelectorAll('.cat-pick').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.cat-pick').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+
+  let recording = false;
+  function toggleRec(){
+    recording = !recording;
+    document.getElementById('mic-big').classList.toggle('rec', recording);
+    document.getElementById('wave').classList.toggle('rec', recording);
+    document.getElementById('rec-label').textContent = recording
+      ? "Recording… tap again to stop"
+      : "Voice note saved ✓";
+  }
+
+  let price = 45;
+  function changePrice(delta){
+    price = Math.max(0, price + delta);
+    document.getElementById('price-amt').textContent = price;
+  }
+
+  let toastTimer;
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+</script>
+</body>
+</html>
